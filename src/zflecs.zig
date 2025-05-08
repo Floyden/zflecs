@@ -575,9 +575,9 @@ pub const term_t = extern struct {
 pub const query_t = extern struct {
     hdr: header_t = .{},
 
-    terms: [FLECS_TERM_COUNT_MAX]term_t = .{.{}} ** FLECS_TERM_COUNT_MAX,
-    sizes: [FLECS_TERM_COUNT_MAX]size_t = .{0} ** FLECS_TERM_COUNT_MAX,
-    ids: [FLECS_TERM_COUNT_MAX]id_t = .{0} ** FLECS_TERM_COUNT_MAX,
+    terms: [FLECS_TERM_COUNT_MAX]term_t = @splat(.{}),
+    sizes: [FLECS_TERM_COUNT_MAX]size_t = @splat(0),
+    ids: [FLECS_TERM_COUNT_MAX]id_t = @splat(0),
 
     flags: flags32_t = 0,
     var_count: i8 = 0,
@@ -2692,8 +2692,14 @@ fn SystemImpl(comptime fn_system: anytype) type {
                 args_tuple[i] = field(it, @typeInfo(p.type.?).Pointer.child, i - start_index).?;
             }
 
-            //NOTE: .always_inline seems ok, but unsure. Replace to .auto if it breaks
-            _ = @call(.always_inline, fn_system, args_tuple);
+            // NOTE: In theory there is no reason not to use .always_inline
+            // here, but in practice it results in a worse debugging experience
+            // as of Zig 0.14.0.
+            //
+            // For example, on Windows crashes inside fn_system are attributed
+            // to this @call, and it is not possible to set breakpoints on code
+            // inside fn_system.
+            _ = @call(.auto, fn_system, args_tuple);
         }
     };
 }
@@ -3122,6 +3128,11 @@ pub fn delete_children(world: *world_t, parent: entity_t) void {
 /// `pub fn import_c(world: *world_t, comptime module: type) entity_t`
 pub const import_c = ecs_import_c;
 extern fn ecs_import_c(world: *world_t, module: module_action_t, module_name_c: [*:0]const u8) entity_t;
+
+/// `pub fn module_init(world: *world_t, c_name: [*:0]const u8, desc: *component_desc_t) entity_t`
+pub const module_init = ecs_module_init;
+extern fn ecs_module_init(world: *world_t, c_name: [*:0]const u8, desc: *component_desc_t) entity_t;
+
 
 //--------------------------------------------------------------------------------------------------
 //
