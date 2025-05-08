@@ -2594,7 +2594,7 @@ pub fn COMPONENT(world: *world_t, comptime T: type) void {
             .size = @sizeOf(T),
             .hooks = .{
                 .dtor = switch (@typeInfo(T)) {
-                    .Struct => blk: {
+                    .@"struct" => blk: {
                         if (@hasDecl(T, "dtor") or @hasDecl(T, "deinit")) break :blk struct {
                             pub fn dtor(ptr: *anyopaque, _: i32, _: *const type_info_t) callconv(.C) void {
                                 if (@hasDecl(T, "dtor")) {
@@ -2671,7 +2671,7 @@ pub fn OBSERVER(
 // }
 fn SystemImpl(comptime fn_system: anytype) type {
     const fn_type = @typeInfo(@TypeOf(fn_system));
-    if (fn_type.Fn.params.len == 0) {
+    if (fn_type.@"fn".params.len == 0) {
         @compileError("System need at least one parameter");
     }
 
@@ -2680,16 +2680,16 @@ fn SystemImpl(comptime fn_system: anytype) type {
             const ArgsTupleType = std.meta.ArgsTuple(@TypeOf(fn_system));
             var args_tuple: ArgsTupleType = undefined;
 
-            const has_it_param = fn_type.Fn.params[0].type == *iter_t;
+            const has_it_param = fn_type.@"fn".params[0].type == *iter_t;
             if (has_it_param) {
                 args_tuple[0] = it;
             }
 
             const start_index = if (has_it_param) 1 else 0;
 
-            inline for (start_index..fn_type.Fn.params.len) |i| {
-                const p = fn_type.Fn.params[i];
-                args_tuple[i] = field(it, @typeInfo(p.type.?).Pointer.child, i - start_index).?;
+            inline for (start_index..fn_type.@"fn".params.len) |i| {
+                const p = fn_type.@"fn".params[i];
+                args_tuple[i] = field(it, @typeInfo(p.type.?).pointer.child, i - start_index).?;
             }
 
             // NOTE: In theory there is no reason not to use .always_inline
@@ -2711,12 +2711,12 @@ pub fn SYSTEM_DESC(comptime fn_system: anytype) system_desc_t {
     var system_desc = system_desc_t{};
     system_desc.callback = system_struct.exec;
 
-    const fn_type = @typeInfo(@TypeOf(fn_system)).Fn;
+    const fn_type = @typeInfo(@TypeOf(fn_system)).@"fn";
     const has_it_param = fn_type.params[0].type == *iter_t;
     const start_index = if (has_it_param) 1 else 0;
     inline for (start_index..fn_type.params.len) |i| {
         const p = fn_type.params[i];
-        const param_type_info = @typeInfo(p.type.?).Pointer;
+        const param_type_info = @typeInfo(p.type.?).pointer;
         const inout = if (param_type_info.is_const) .In else .InOut;
         system_desc.query.terms[i - start_index] = .{ .id = id(param_type_info.child), .inout = inout };
     }
@@ -2727,7 +2727,7 @@ pub fn SYSTEM_DESC(comptime fn_system: anytype) system_desc_t {
 /// Creates system_desc_t from function parameters.
 /// Accepts additional query terms
 pub fn SYSTEM_DESC_WITH_FILTERS(comptime fn_system: anytype, filters: []const term_t) system_desc_t {
-    const fn_type = @typeInfo(@TypeOf(fn_system)).Fn;
+    const fn_type = @typeInfo(@TypeOf(fn_system)).@"fn";
     var system_desc = SYSTEM_DESC(fn_system);
 
     const has_it_param = fn_type.params[0].type == *iter_t;
